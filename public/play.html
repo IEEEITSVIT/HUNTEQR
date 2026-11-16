@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your clue · Hunt the Code</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="row between">
+    <div>
+      <div class="brand" id="event">Hunt the Code</div>
+      <h1 id="team">&nbsp;</h1>
+    </div>
+    <button class="ghost sm" id="logout">Log out</button>
+  </div>
+
+  <div class="notice" id="flash" role="status"></div>
+
+  <section class="card">
+    <div class="row between small muted"><span id="count"></span><span id="who"></span></div>
+    <div class="bar"><i id="bar" style="width:0"></i></div>
+  </section>
+
+  <section class="card" id="main" aria-live="polite">
+    <p class="muted">Loading…</p>
+  </section>
+
+  <p class="small muted">Found the spot? Open your phone camera, scan the QR code stuck there, and tap the link. Walk, don't run, and stay off the roads.</p>
+</main>
+<script>
+const FLASH = {
+  ok: ['good', 'Correct! Here is your next clue.'],
+  finish: ['good', 'You found the treasure! Well played.'],
+  wrong: ['bad', 'That QR is not the answer to your current clue. Keep looking.'],
+  already: ['', 'Your team has already scanned that one.'],
+  invalid: ['bad', 'That QR code is not part of this hunt.'],
+  notlive: ['', 'The hunt is not live right now, so that scan did not count.'],
+  noseq: ['bad', 'Your team has no route yet. Please see the organisers.'],
+  done: ['good', 'Your team has already finished.'],
+};
+const r = new URLSearchParams(location.search).get('r');
+if (FLASH[r]) {
+  const el = document.getElementById('flash');
+  el.textContent = FLASH[r][1];
+  if (FLASH[r][0]) el.classList.add(FLASH[r][0]);
+  history.replaceState(null, '', '/play');
+}
+
+const $ = (id) => document.getElementById(id);
+function show(title, text, isClue) {
+  const main = $('main');
+  main.replaceChildren();
+  const h = document.createElement('h2'); h.textContent = title;
+  const p = document.createElement('p'); p.textContent = text; p.className = isClue ? 'clue' : 'muted';
+  main.append(h, p);
+}
+
+async function load() {
+  let res;
+  try { res = await fetch('/api/me'); } catch { return; } // offline blip: keep showing the last clue
+  if (res.status === 401) return location.replace('/');
+  if (!res.ok) return;
+  const me = await res.json();
+  if (!me.consented) return location.replace('/consent');
+
+  $('event').textContent = me.eventName;
+  $('team').textContent = me.team.name;
+  $('who').textContent = me.participant.name;
+  $('count').textContent = me.team.total ? `${me.team.progress} of ${me.team.total} found` : '';
+  $('bar').style.width = me.team.total ? `${(me.team.progress / me.team.total) * 100}%` : '0';
+
+  if (me.team.finished) show('Hunt complete', 'Your team found the treasure. Report to the organisers at the Basketball Court.');
+  else if (me.status === 'draft') show('Waiting for the start', 'The organisers have not started the hunt yet. Your first clue will appear here automatically.');
+  else if (me.status === 'ended') show('The hunt has ended', 'Time is up. Please return to the Basketball Court.');
+  else if (me.clue) show(`Clue ${me.clue.number}`, me.clue.text, true);
+  else show('No route yet', 'Your team has not been given a route. Please see the organisers.');
+}
+load();
+setInterval(load, 8000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+
+$('logout').addEventListener('click', async () => {
+  if (!confirm('Log out on this phone? Your team keeps its progress.')) return;
+  await fetch('/api/logout', { method: 'POST' });
+  location.replace('/');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safety consent · Hunt the Code</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="brand">Before you start</div>
+  <h1>Safety and conduct consent</h1>
+  <p class="muted">Tick every point to unlock your first clue. This is recorded against your name and registration number.</p>
+
+  <form class="card" id="form">
+    <div class="notice bad" id="error" role="alert"></div>
+    <label class="check"><input type="checkbox" required> I will not run on roads, and I will use footpaths and crossings wherever they exist.</label>
+    <label class="check"><input type="checkbox" required> I will not block or disrupt traffic, and vehicles always have right of way over the hunt.</label>
+    <label class="check"><input type="checkbox" required> I will not disturb or push past people around me, or disrupt classes, offices, hostels or other events.</label>
+    <label class="check"><input type="checkbox" required> I will stay in permitted areas of campus and will not enter restricted or locked spaces.</label>
+    <label class="check"><input type="checkbox" required> I will not move, hide, damage or tamper with any QR code, and I will not share clues with other teams.</label>
+    <label class="check"><input type="checkbox" required> I will follow the organisers' instructions, and I understand that unsafe behaviour can disqualify my whole team.</label>
+    <label class="check"><input type="checkbox" required> I am taking part voluntarily and I am responsible for my own safety and belongings during the event.</label>
+    <button class="block" id="go">I agree, start hunting</button>
+  </form>
+</main>
+<script>
+const next = new URLSearchParams(location.search).get('next');
+const safeNext = next && /^\/s\/[A-Za-z0-9]+$/.test(next) ? next : null;
+
+fetch('/api/me').then(async (r) => {
+  if (r.status === 401) return location.replace('/' + (safeNext ? '?next=' + encodeURIComponent(safeNext) : ''));
+  const me = await r.json();
+  if (me.consented) location.replace(safeNext || '/play');
+});
+
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('go');
+  const error = document.getElementById('error');
+  btn.disabled = true; error.textContent = '';
+  try {
+    const res = await fetch('/api/consent', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agree: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    location.replace(safeNext || '/play');
+  } catch (err) {
+    error.textContent = err.message || 'Could not save your consent. Try again.';
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

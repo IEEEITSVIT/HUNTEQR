@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · Hunt the Code</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap wide">
+
+  <!-- login -->
+  <section id="login" hidden style="max-width:420px;margin:0 auto">
+    <div class="brand">IEEE ITS · Organisers</div>
+    <h1>Admin login</h1>
+    <form class="card" id="login-form">
+      <div class="notice bad" id="login-error" role="alert"></div>
+      <label for="user">Username</label>
+      <input type="text" id="user" autocomplete="username" required>
+      <label for="pass">Password</label>
+      <input type="password" id="pass" autocomplete="current-password" required>
+      <button class="block">Log in</button>
+    </form>
+  </section>
+
+  <!-- dashboard -->
+  <div id="app" hidden>
+    <div class="row between no-print">
+      <div>
+        <div class="brand">IEEE ITS · Admin</div>
+        <h1><span id="event-name"></span> <span class="pill" id="status-pill"></span></h1>
+      </div>
+      <button class="ghost sm" id="logout">Log out</button>
+    </div>
+    <div class="notice bad no-print" id="error" role="alert"></div>
+
+    <nav class="tabs no-print" id="tabs">
+      <button data-tab="live">Live</button>
+      <button data-tab="teams">Teams</button>
+      <button data-tab="clues">Clues</button>
+      <button data-tab="routes">Routes</button>
+      <button data-tab="qr">QR codes</button>
+    </nav>
+
+    <!-- LIVE -->
+    <section data-panel="live">
+      <div class="card">
+        <h2>Event control</h2>
+        <div class="row">
+          <button id="start">Start hunt</button>
+          <button class="ghost" id="end">End hunt</button>
+          <button class="ghost" id="draft">Back to draft</button>
+          <button class="danger" id="reset">Reset all progress</button>
+        </div>
+        <p class="small muted" style="margin:12px 0 0">Participants only see clues while the hunt is live. Draft shows them a waiting screen.</p>
+        <form class="row" id="name-form" style="margin-top:14px">
+          <input type="text" id="name-input" class="grow" maxlength="80" aria-label="Event name">
+          <button class="ghost">Rename event</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Leaderboard</h2>
+        <div class="scroll"><table>
+          <thead><tr><th class="num">#</th><th>Team</th><th class="num">Found</th><th>Last scan</th><th>Members</th><th>State</th></tr></thead>
+          <tbody id="board"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- TEAMS -->
+    <section data-panel="teams" class="printable">
+      <div class="card no-print">
+        <h2>Generate teams</h2>
+        <form class="row" id="team-form">
+          <div><label for="team-count">Number of teams</label><input type="number" id="team-count" min="1" max="200" value="10" required></div>
+          <div class="grow"><label for="team-prefix">Name prefix</label><input type="text" id="team-prefix" value="Team" maxlength="30"></div>
+          <button style="align-self:flex-end">Generate</button>
+        </form>
+        <p class="small muted" style="margin:12px 0 0">Each team gets a unique login code. Generating again adds more teams; it never changes existing ones.</p>
+      </div>
+      <div class="card no-print">
+        <div class="row between"><h2>Teams</h2><button class="ghost sm" id="print-codes">Print code slips</button></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Team</th><th>Login code</th><th>Members (consent)</th><th></th></tr></thead>
+          <tbody id="team-rows"></tbody>
+        </table></div>
+      </div>
+      <div class="print-area code-grid" id="code-slips" hidden></div>
+    </section>
+
+    <!-- CLUES -->
+    <section data-panel="clues">
+      <div class="card">
+        <h2 id="clue-form-title">Add a clue</h2>
+        <p class="small muted">Every team has its own clues at its own locations. Each clue is one QR station: the clue text is the riddle that leads that team <b>to</b> the place where this clue's QR is stuck, and scanning it unlocks their next clue. The single treasure clue is shared: it is every team's last stop, and the first team to scan it wins.</p>
+        <form id="clue-form">
+          <label for="clue-team">This clue is for</label>
+          <select id="clue-team"></select>
+          <label for="clue-title">Location label (organisers only, e.g. "Library notice board")</label>
+          <input type="text" id="clue-title" maxlength="80" required>
+          <label for="clue-text">Clue text shown to teams</label>
+          <textarea id="clue-text" maxlength="2000" required></textarea>
+          <label class="check" style="border:0"><input type="checkbox" id="clue-final"> Treasure clue: the one final stop shared by every team</label>
+          <div class="row">
+            <button id="clue-save">Add clue</button>
+            <button type="button" class="ghost" id="clue-cancel" hidden>Cancel edit</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Clues</h2>
+        <div class="scroll"><table>
+          <thead><tr><th class="num">#</th><th>For</th><th>Location</th><th>Clue text</th><th></th></tr></thead>
+          <tbody id="clue-rows"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ROUTES -->
+    <section data-panel="routes">
+      <div class="card">
+        <h2>Generate routes</h2>
+        <form class="row" id="route-form">
+          <div class="grow">
+            <label for="route-mode">Order</label>
+            <select id="route-mode">
+              <option value="entered">Each team's clues in the order they were added</option>
+              <option value="shuffle">Each team's clues in a random order</option>
+            </select>
+          </div>
+          <label class="check" style="border:0;align-self:flex-end"><input type="checkbox" id="route-missing"> Only teams without a route</label>
+          <button style="align-self:flex-end">Generate</button>
+        </form>
+        <p class="small muted" style="margin:12px 0 0">Each team's route is its own clues followed by the treasure clue. Regenerating a team's route resets that team's progress.</p>
+      </div>
+      <div class="card">
+        <h2>Team routes</h2>
+        <p class="small muted">Numbers are clue numbers from the Clues tab, in the order the team must find them.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Team</th><th>Route</th><th></th></tr></thead>
+          <tbody id="route-rows"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- QR -->
+    <section data-panel="qr" class="printable">
+      <div class="card no-print">
+        <div class="row between">
+          <h2>Station QR codes</h2>
+          <button id="print-qr">Print all</button>
+        </div>
+        <p class="small muted" style="margin:0">Codes point at <code id="origin"></code>. Print them from the deployed site, not from localhost, or phones will not be able to open them.</p>
+      </div>
+      <div class="print-area qr-grid" id="qr-grid"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let state = null;
+let editingClue = null;
+let tab = location.hash.slice(1) || 'live';
+
+async function api(path, method = 'GET', data) {
+  const res = await fetch('/api/admin/' + path, {
+    method,
+    headers: data ? { 'content-type': 'application/json' } : {},
+    body: data ? JSON.stringify(data) : undefined,
+  });
+  if (res.status === 401 && path !== 'login') { showLogin(); throw new Error('Please log in again.'); }
+  const out = await res.json();
+  if (!res.ok) throw new Error(out.error || 'Request failed.');
+  return out;
+}
+
+// Run an action, then refresh; any failure lands in the error banner.
+async function act(fn) {
+  $('error').textContent = '';
+  try { await fn(); await refresh(); }
+  catch (err) { $('error').textContent = err.message; window.scrollTo(0, 0); }
+}
+
+function showLogin() { $('app').hidden = true; $('login').hidden = false; }
+
+async function refresh() {
+  state = await api('state');
+  $('login').hidden = true; $('app').hidden = false;
+  render();
+}
+
+const teamName = (id) => state.teams.find((t) => t.id === id)?.name || 'Unknown team';
+const clueNo = (id) => state.clues.findIndex((c) => c.id === id) + 1;
+const time = (sql) => sql ? new Date(sql.replace(' ', 'T') + 'Z').toLocaleTimeString() : '';
+
+function render() {
+  $('event-name').textContent = state.eventName;
+  const pill = $('status-pill'); pill.textContent = state.status; pill.className = 'pill ' + state.status;
+  if (document.activeElement !== $('name-input')) $('name-input').value = state.eventName;
+  $('start').disabled = state.status === 'live';
+  $('end').disabled = state.status !== 'live';
+  $('draft').disabled = state.status === 'draft';
+  $('origin').textContent = state.origin;
+
+  for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === tab);
+  for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== tab;
+
+  const members = {};
+  for (const p of state.participants) (members[p.teamId] ||= []).push(p);
+
+  // leaderboard: most found first, earliest last scan breaks ties
+  const ranked = [...state.teams].sort((a, b) =>
+    (a.finishedAt || '~').localeCompare(b.finishedAt || '~') || b.progress - a.progress || (a.lastAdvanceAt || '~').localeCompare(b.lastAdvanceAt || '~') || a.id - b.id);
+  $('board').innerHTML = ranked.map((t, i) => `<tr>
+    <td class="num">${i + 1}</td><td>${esc(t.name)}</td>
+    <td class="num">${t.progress} / ${t.sequence.length}</td>
+    <td>${time(t.lastAdvanceAt) || '<span class="muted">none</span>'}</td>
+    <td class="num">${(members[t.id] || []).length}</td>
+    <td>${t.finishedAt ? `<span class="pill live">treasure found ${time(t.finishedAt)}</span>` : t.sequence.length ? '' : '<span class="pill ended">no route</span>'}</td>
+  </tr>`).join('') || '<tr><td colspan="6" class="muted">No teams yet. Create them in the Teams tab.</td></tr>';
+
+  $('team-rows').innerHTML = state.teams.map((t) => `<tr>
+    <td>${esc(t.name)}</td><td><code>${esc(t.code)}</code></td>
+    <td>${(members[t.id] || []).map((p) => `${esc(p.name)} <span class="muted">(${esc(p.regNo)})</span> ${p.consentAt ? '✓' : '<span class="muted">no consent yet</span>'}`).join('<br>') || '<span class="muted">nobody logged in</span>'}</td>
+    <td><div class="row"><button class="ghost sm" data-rename="${t.id}">Rename</button><button class="danger sm" data-del-team="${t.id}">Delete</button></div></td>
+  </tr>`).join('') || '<tr><td colspan="4" class="muted">No teams yet.</td></tr>';
+  $('code-slips').innerHTML = state.teams.map((t) => `<div class="code-card">
+    <b>${esc(t.name)}</b><span class="code">${esc(t.code)}</span><span class="small">${esc(state.origin)}</span></div>`).join('');
+
+  $('clue-rows').innerHTML = state.clues.map((c, i) => `<tr>
+    <td class="num">${i + 1}</td>
+    <td>${c.isFinal ? '<span class="pill final">treasure · all teams</span>' : esc(teamName(c.teamId))}</td>
+    <td>${esc(c.title)}</td>
+    <td style="white-space:pre-wrap">${esc(c.clueText)}</td>
+    <td><div class="row"><button class="ghost sm" data-edit-clue="${c.id}">Edit</button><button class="danger sm" data-del-clue="${c.id}">Delete</button></div></td>
+  </tr>`).join('') || '<tr><td colspan="5" class="muted">No clues yet.</td></tr>';
+
+  // Team picker for the clue form; keep the current choice across refreshes.
+  const picker = $('clue-team');
+  const teamKey = state.teams.map((t) => t.id + t.name).join('|');
+  if (picker.dataset.key !== teamKey) {
+    const keep = picker.value;
+    picker.dataset.key = teamKey;
+    picker.innerHTML = state.teams.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('') || '<option value="">Create teams first</option>';
+    if (keep && state.teams.some((t) => t.id == keep)) picker.value = keep;
+  }
+  picker.disabled = $('clue-final').checked;
+
+  $('route-rows').innerHTML = state.teams.map((t) => `<tr>
+    <td>${esc(t.name)}</td>
+    <td class="route">${t.sequence.map(clueNo).join(' → ') || '<span class="muted">no route</span>'}</td>
+    <td><button class="ghost sm" data-edit-route="${t.id}">Edit</button></td>
+  </tr>`).join('') || '<tr><td colspan="3" class="muted">No teams yet.</td></tr>';
+
+  // Rebuild QR images only when the clue list changes, so polling does not make them flicker.
+  const key = state.clues.map((c) => c.id + c.title + c.teamId + c.isFinal).join('|') + teamKey;
+  if ($('qr-grid').dataset.key !== key) {
+    $('qr-grid').dataset.key = key;
+    $('qr-grid').innerHTML = state.clues.map((c, i) => `<div class="qr-card">
+      <img src="/api/admin/qr/${c.id}.svg" alt="QR code for station ${i + 1}">
+      <b>${esc(state.eventName)}</b>
+      <span>${c.isFinal ? 'Treasure · all teams' : esc(teamName(c.teamId))} · Clue ${i + 1} · ${esc(c.title)}</span>
+      <span>Please do not remove · IEEE ITS</span>
+    </div>`).join('') || '<p class="muted">Add clues to get QR codes.</p>';
+  }
+}
+
+// ---- events ----
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('login-error').textContent = '';
+  try { await api('login', 'POST', { username: $('user').value, password: $('pass').value }); $('pass').value = ''; await refresh(); }
+  catch (err) { $('login-error').textContent = err.message; }
+});
+$('logout').addEventListener('click', async () => { await api('logout', 'POST'); showLogin(); });
+
+$('tabs').addEventListener('click', (e) => {
+  if (!e.target.dataset.tab) return;
+  tab = e.target.dataset.tab; history.replaceState(null, '', '#' + tab); render();
+});
+
+window.addEventListener('hashchange', () => { tab = location.hash.slice(1) || 'live'; if (state) render(); });
+
+$('start').addEventListener('click', () => act(() => api('status', 'POST', { status: 'live' })));
+$('end').addEventListener('click', () => confirm('End the hunt? Teams will stop seeing clues.') && act(() => api('status', 'POST', { status: 'ended' })));
+$('draft').addEventListener('click', () => act(() => api('status', 'POST', { status: 'draft' })));
+$('reset').addEventListener('click', () =>
+  confirm('Reset every team to zero and clear the scan log? Teams, clues and routes are kept.') && act(() => api('reset-progress', 'POST')));
+$('name-form').addEventListener('submit', (e) => { e.preventDefault(); act(() => api('settings', 'PUT', { eventName: $('name-input').value })); });
+
+$('team-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  act(() => api('teams/generate', 'POST', { count: Number($('team-count').value), prefix: $('team-prefix').value }));
+});
+
+$('clue-final').addEventListener('change', () => { $('clue-team').disabled = $('clue-final').checked; });
+function resetClueForm() {
+  editingClue = null;
+  const team = $('clue-team').value; // stay on the same team so its clues can be entered one after another
+  $('clue-form').reset();
+  $('clue-team').value = team;
+  $('clue-team').disabled = false;
+  $('clue-form-title').textContent = 'Add a clue';
+  $('clue-save').textContent = 'Add clue';
+  $('clue-cancel').hidden = true;
+}
+$('clue-cancel').addEventListener('click', resetClueForm);
+$('clue-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const data = { title: $('clue-title').value, clueText: $('clue-text').value, isFinal: $('clue-final').checked, teamId: Number($('clue-team').value) };
+  act(async () => { await api(editingClue ? 'clues/' + editingClue : 'clues', editingClue ? 'PUT' : 'POST', data); resetClueForm(); });
+});
+
+$('route-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const onlyMissing = $('route-missing').checked;
+  if (!onlyMissing && !confirm('Generate new routes for every team? This resets all progress.')) return;
+  act(() => api('sequences/generate', 'POST', { mode: $('route-mode').value, onlyMissing }));
+});
+
+document.addEventListener('click', (e) => {
+  const d = e.target.dataset;
+  if (d.rename) {
+    const team = state.teams.find((t) => t.id == d.rename);
+    const name = prompt('Team name', team.name);
+    if (name) act(() => api('teams/' + team.id, 'PATCH', { name }));
+  } else if (d.delTeam) {
+    const team = state.teams.find((t) => t.id == d.delTeam);
+    if (confirm(`Delete ${team.name}, its members, its clues and its progress?`)) act(() => api('teams/' + team.id, 'DELETE'));
+  } else if (d.editClue) {
+    const clue = state.clues.find((c) => c.id == d.editClue);
+    editingClue = clue.id;
+    $('clue-title').value = clue.title; $('clue-text').value = clue.clueText; $('clue-final').checked = clue.isFinal;
+    if (clue.teamId) $('clue-team').value = clue.teamId;
+    $('clue-team').disabled = clue.isFinal;
+    $('clue-form-title').textContent = 'Edit clue ' + clueNo(clue.id);
+    $('clue-save').textContent = 'Save changes';
+    $('clue-cancel').hidden = false;
+    $('clue-form-title').scrollIntoView({ behavior: 'smooth' });
+  } else if (d.delClue) {
+    const clue = state.clues.find((c) => c.id == d.delClue);
+    if (confirm(`Delete clue "${clue.title}"? It is removed from its route and its printed QR stops working.`)) act(() => api('clues/' + clue.id, 'DELETE'));
+  } else if (d.editRoute) {
+    const team = state.teams.find((t) => t.id == d.editRoute);
+    const input = prompt(`Route for ${team.name}: clue numbers in order, separated by commas`, team.sequence.map(clueNo).join(', '));
+    if (input === null) return;
+    const numbers = input.split(/[\s,→]+/).filter(Boolean).map(Number);
+    const ids = numbers.map((n) => state.clues[n - 1]?.id);
+    if (!ids.length || ids.some((id) => !id)) { $('error').textContent = `Route not saved: use clue numbers between 1 and ${state.clues.length}.`; return; }
+    act(() => api(`teams/${team.id}/sequence`, 'PUT', { clueIds: ids }));
+  }
+});
+
+function printPanel() { document.body.classList.add('printing'); $('code-slips').hidden = false; window.print(); }
+window.addEventListener('afterprint', () => { document.body.classList.remove('printing'); $('code-slips').hidden = true; });
+$('print-qr').addEventListener('click', printPanel);
+$('print-codes').addEventListener('click', printPanel);
+
+// Keep the leaderboard fresh while the Live tab is open.
+setInterval(() => { if (state && tab === 'live' && !document.hidden && !$('app').hidden) refresh().catch(() => {}); }, 5000);
+
+refresh().catch(showLogin);
+</script>
+</body>
+</html>
